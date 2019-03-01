@@ -1,5 +1,6 @@
 require 'pathname'
 
+# ハッシュタグクラスとパス参照クラス分けたほうが良いかも
 Reference = Struct.new(:name) do
   def is_hashtag?
     name.start_with?('#')
@@ -41,6 +42,9 @@ Page = Struct.new(:name, :path, :references, :references_resolved) do
           references_resolved << Reference.new(match[1])
         when i == 0
           if match = l.match(/^# (.*)$/)
+
+            def append_referer
+            end
             name = match[1]
           else
             probably_name = l
@@ -54,21 +58,28 @@ Page = Struct.new(:name, :path, :references, :references_resolved) do
     new(name, Pathname.new(path), references, references_resolved)
   end
 
+  def refers?(name)
+    self.references.any?{|ref| ref.name == name }
+  end
+
   def append_reference_path_definitions_to_file(all: false)
+    reftag = "<!-- :: REFERENCES :: -->"
+
     references_append = all ? self.references : (self.references - self.references_resolved)
     dir = self.path.dirname
 
     return if references_append.empty?
 
-    File.open(path, "a+") do |f|
-      append = String.new
+    append = String.new
 
-      append << "\n---\n\n"
-      references_append.each do |ref|
-        append << "[%s]: %s\n" % [ref.name, ref.to_path(basedir: dir)]
-      end
+    references_append.each do |ref|
+      append << "[%s]: %s\n" % [ref.name, ref.to_path(basedir: dir)]
+    end
 
-      f << append
+    File.open(path, "r+") do |f|
+      found = f.each_line.find {|l| l.strip == reftag }
+      f.puts "#{reftag}" unless found
+      f.puts append
     end
   end
 end
@@ -80,6 +91,38 @@ Pages = Struct.new(:pages) do
 
     new(map)
   end
+
+  def find_referers(name)
+    self.pages.values.select { |p| p.refers?(name) }
+  end
+
+  def append_reference
+    self.pages.values.each { |p| p.append_reference_path_definitions_to_file }
+  end
+
+  def append_referer
+    reftag = "<!-- :: REFERERS :: -->"
+
+    self.pages.values.each do |p|
+      root = Pathname.new("../" * p.path.dirname.descend.count)
+      referers = self.find_referers(p.name)
+      append = String.new
+
+      append << "---\n" 
+      append << "リファラ: \n\n"
+
+      referers.each do |ref|
+        path = root / ref.path
+        append << "* [#{ref.name}](#{path})\n"
+      end
+
+      File.open(p.path, "r+") do |f|
+        found = f.each_line.find {|l| l.strip == reftag }
+        f.puts "#{reftag}\n" unless found
+        f.puts append
+      end
+    end
+  end
 end
 
 file_paths = Dir.glob('**/*.md')
@@ -88,4 +131,8 @@ pp pages = Pages.from_array(
   file_paths.map{|fp| Page.from_file(fp) }
 )
 
-pages.pages.values.each{|p| p.append_reference_path_definitions_to_file }
+puts "-- append reference"
+pages.append_reference
+
+puts "-- append referer"
+pages.append_referer
