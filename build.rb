@@ -108,7 +108,7 @@ Pages = Struct.new(:pages) do
       referers = self.find_referers(p.name)
       append = String.new
 
-      append << "---\n" 
+      append << "\n---\n" 
       append << "リファラ: \n\n"
 
       referers.each do |ref|
