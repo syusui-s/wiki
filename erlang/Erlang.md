@@ -8,7 +8,6 @@
 	* <./Erlangチートシート.md>
 
 [#技術メモ]
-
 <!-- :: REFERENCES :: -->
 [#技術メモ]: ../技術メモ.md
 <!-- :: REFERERS :: -->
@@ -16,4 +15,4 @@
 ---
 リファラ: 
 
-* [Erlangチートシート](../erlang/Erlang_cheatsheet.md)
+* [Erlangチートシート](Erlang_cheatsheet.md)

@@ -1,4 +1,5 @@
 require 'pathname'
+require 'tempfile'
 
 # ハッシュタグクラスとパス参照クラス分けたほうが良いかも
 Reference = Struct.new(:name) do
@@ -32,7 +33,7 @@ Page = Struct.new(:name, :path, :references, :references_resolved) do
     references = []
     references_resolved = []
     probably_name = nil
-
+     
     File.open(path) do |f|
       f.each_line.each_with_index do |l, i|
         case
@@ -42,9 +43,6 @@ Page = Struct.new(:name, :path, :references, :references_resolved) do
           references_resolved << Reference.new(match[1])
         when i == 0
           if match = l.match(/^# (.*)$/)
-
-            def append_referer
-            end
             name = match[1]
           else
             probably_name = l
@@ -70,17 +68,23 @@ Page = Struct.new(:name, :path, :references, :references_resolved) do
 
     return if references_append.empty?
 
-    append = String.new
-
-    references_append.each do |ref|
-      append << "[%s]: %s\n" % [ref.name, ref.to_path(basedir: dir)]
-    end
+    temp = File.open("#{self.path}.tmp", "w")
 
     File.open(path, "r+") do |f|
-      found = f.each_line.find {|l| l.strip == reftag }
-      f.puts "#{reftag}" unless found
-      f.puts append
+      f.each_line {|l|
+        break if l.strip == reftag
+        temp.print l
+      }
+      temp.puts "#{reftag}\n"
     end
+
+    references_append.each do |ref|
+      temp.puts "[%s]: %s\n" % [ref.name, ref.to_path(basedir: dir)]
+    end
+
+    temp.close
+
+    FileUtils.mv(temp.path, path)
   end
 end
 
@@ -104,23 +108,30 @@ Pages = Struct.new(:pages) do
     reftag = "<!-- :: REFERERS :: -->"
 
     self.pages.values.each do |p|
-      root = Pathname.new("../" * p.path.dirname.descend.count)
       referers = self.find_referers(p.name)
-      append = String.new
 
-      append << "\n---\n" 
-      append << "リファラ: \n\n"
-
-      referers.each do |ref|
-        path = root / ref.path
-        append << "* [#{ref.name}](#{path})\n"
-      end
+      temp = File.open("#{p.path}.tmp", "w")
 
       File.open(p.path, "r+") do |f|
-        found = f.each_line.find {|l| l.strip == reftag }
-        f.puts "#{reftag}\n" unless found
-        f.puts append
+        f.each_line.find {|l|
+          break if l.strip == reftag
+          temp.print l
+        }
       end
+ 
+      temp.puts "#{reftag}\n"
+
+      temp << "\n---\n" 
+      temp << "リファラ: \n\n"
+
+      referers.each do |ref|
+        path = ref.path.relative_path_from(p.path.dirname)
+        temp << "* [#{ref.name}](#{path})\n"
+      end
+
+      temp.close
+
+      FileUtils.mv(temp.path, p.path)
     end
   end
 end
