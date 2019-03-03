@@ -210,6 +210,8 @@ Cだととりあえず小さめでmallocしておいて、後でreallocみたい
 
 <!-- }}} -->
 
+[#技術メモ]
+
 <!-- vim: set noet ts=4 sw=4 foldmethod=marker : -->
 
 <!-- :: REFERERS :: -->
@@ -217,3 +219,5 @@ Cだととりあえず小さめでmallocしておいて、後でreallocみたい
 ---
 リファラ: 
 
+<!-- :: REFERENCES :: -->
+[#技術メモ]: ../技術メモ.md
